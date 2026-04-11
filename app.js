@@ -68,6 +68,12 @@ function renderChannels(channels) {
             <td><span style="background:#e0e0e0; padding:2px 8px; border-radius:10px; font-size:0.85em;">${channel.category}</span></td>
             <td class="url-cell" title="${channel.url}">${channel.url}</td>
             <td>
+                <label class="switch">
+                    <input type="checkbox" onchange="toggleChannelVisibility('${channel._id}', this.checked)" ${channel.isActive !== false ? 'checked' : ''}>
+                    <span class="slider round"></span>
+                </label>
+            </td>
+            <td>
                 <button class="edit-btn" onclick="editChannel('${channel._id}')">Edit</button>
                 <button class="delete-btn" onclick="deleteChannel('${channel._id}')">Delete</button>
             </td>
@@ -155,6 +161,30 @@ async function deleteChannel(id) {
         
     } catch (error) {
         showError(error.message);
+    }
+}
+
+// Toggle Channel Visibility
+async function toggleChannelVisibility(id, isActive) {
+    try {
+        const response = await fetch(`${API_URL}/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isActive })
+        });
+        
+        if (!response.ok) throw new Error('Failed to update visibility');
+        
+        // Update local state without full reload
+        const channelIndex = currentChannels.findIndex(c => c._id === id);
+        if (channelIndex > -1) {
+            currentChannels[channelIndex].isActive = isActive;
+        }
+        
+    } catch (error) {
+        showError(error.message);
+        // Revert UI toggle visually if request fails
+        fetchChannels();
     }
 }
 
