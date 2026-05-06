@@ -3,70 +3,185 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live TV Admin Dashboard</title>
+    <title>LVS Live TV — Admin Dashboard</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Live TV Admin Dashboard</h1>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <span class="logo-icon">📺</span>
+            <span class="logo-text">LVS Admin</span>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-section="channels">
+                <span class="nav-icon">📡</span> Channels
+            </a>
+            <a href="#" class="nav-item" id="add-channel-nav">
+                <span class="nav-icon">➕</span> Add Channel
+            </a>
+        </nav>
+        <div class="sidebar-footer">LVS Stream Backend</div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Top Bar -->
+        <header class="topbar">
+            <h1 id="page-title">Channel Management</h1>
+            <div class="topbar-actions">
+                <button id="refresh-btn" class="btn btn-ghost" onclick="fetchChannels()">
+                    ↻ Refresh
+                </button>
+                <button class="btn btn-primary" id="topbar-add-btn">+ Add Channel</button>
+            </div>
         </header>
-        
-        <main>
-            <section class="form-section">
-                <h2 id="form-title">Add New Channel</h2>
-                <form id="channel-form">
-                    <input type="hidden" id="channel-id">
-                    
+
+        <!-- Toast -->
+        <div id="toast" class="toast"></div>
+
+        <!-- Stats Cards -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-label">Total Channels</div>
+                <div class="stat-value" id="stat-total">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Active</div>
+                <div class="stat-value green" id="stat-active">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Hidden</div>
+                <div class="stat-value red" id="stat-hidden">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">WebView Channels</div>
+                <div class="stat-value purple" id="stat-webview">—</div>
+            </div>
+        </div>
+
+        <!-- Search & Filter -->
+        <div class="toolbar">
+            <input type="text" id="search-input" class="search-input" placeholder="🔍  Search channels…" oninput="filterChannels()">
+            <select id="category-filter" class="filter-select" onchange="filterChannels()">
+                <option value="">All Categories</option>
+            </select>
+            <select id="type-filter" class="filter-select" onchange="filterChannels()">
+                <option value="">All Types</option>
+                <option value="webview">WebView Player</option>
+                <option value="native">Native Player</option>
+            </select>
+        </div>
+
+        <!-- Channel Table -->
+        <div class="card">
+            <div id="loading" class="loading-overlay">
+                <div class="spinner"></div>
+                <span>Loading channels…</span>
+            </div>
+            <table id="channels-table">
+                <thead>
+                    <tr>
+                        <th>Logo</th>
+                        <th>Name</th>
+                        <th>Category</th>
+                        <th>Stream URL</th>
+                        <th>Web Player URL</th>
+                        <th>Player</th>
+                        <th>Active</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="channels-list">
+                </tbody>
+            </table>
+            <div id="empty-state" class="empty-state" style="display:none">
+                <div class="empty-icon">📭</div>
+                <p>No channels found</p>
+                <button class="btn btn-primary" id="empty-add-btn">Add your first channel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Overlay -->
+    <div id="modal-overlay" class="modal-overlay" style="display:none">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modal-title">Add New Channel</h2>
+                <button class="modal-close" onclick="closeModal()">✕</button>
+            </div>
+            <form id="channel-form" class="modal-body">
+                <input type="hidden" id="channel-id">
+
+                <div class="form-row">
                     <div class="form-group">
-                        <label for="name">Channel Name:</label>
+                        <label for="name">Channel Name <span class="req">*</span></label>
                         <input type="text" id="name" required placeholder="e.g. ETV Cinema">
                     </div>
-                    
                     <div class="form-group">
-                        <label for="icon">Channel Logo URL:</label>
-                        <input type="url" id="icon" required placeholder="https://example.com/logo.webp">
+                        <label for="category">Category <span class="req">*</span></label>
+                        <input type="text" id="category" required placeholder="e.g. Movies" list="category-datalist">
+                        <datalist id="category-datalist"></datalist>
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="url">Stream URL (m3u8):</label>
-                        <input type="url" id="url" required placeholder="https://example.com/stream.m3u8">
+                </div>
+
+                <div class="form-group">
+                    <label for="icon">Channel Logo URL <span class="req">*</span></label>
+                    <div class="input-with-preview">
+                        <input type="url" id="icon" required placeholder="https://example.com/logo.png" oninput="previewIcon()">
+                        <img id="icon-preview" class="icon-preview" src="" alt="" style="display:none">
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="category">Category:</label>
-                        <input type="text" id="category" required placeholder="e.g. Movies">
-                    </div>
-                    
-                    <div class="form-actions">
-                        <button type="submit" id="submit-btn">Save Channel</button>
-                        <button type="button" id="cancel-btn" class="secondary" style="display: none;">Cancel Edit</button>
-                    </div>
-                </form>
-            </section>
-            
-            <section class="list-section">
-                <h2>Manage Channels</h2>
-                <div id="loading" class="loading">Loading channels...</div>
-                <div id="error-message" class="error" style="display: none;"></div>
-                
-                <table id="channels-table">
-                    <thead>
-                        <tr>
-                            <th>Logo</th>
-                            <th>Name</th>
-                            <th>Category</th>
-                            <th>Stream URL</th>
-                            <th>Visibility</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="channels-list">
-                        <!-- Channels will be inserted here dynamically -->
-                    </tbody>
-                </table>
-            </section>
-        </main>
+                </div>
+
+                <div class="form-group">
+                    <label for="url">
+                        Stream URL (m3u8 / RTMP) <span class="req">*</span>
+                        <span class="badge badge-native">Native Player</span>
+                    </label>
+                    <input type="url" id="url" required placeholder="https://example.com/stream.m3u8">
+                </div>
+
+                <div class="form-group">
+                    <label for="webPlayerUrl">
+                        Web Player URL
+                        <span class="badge badge-webview">WebView Player</span>
+                        <span class="hint">Optional — AIO / JW / embed URL. If set, app uses WebView instead of native player.</span>
+                    </label>
+                    <input type="url" id="webPlayerUrl" placeholder="https://aioplayer.com/embed/…">
+                </div>
+
+                <div class="form-group form-check">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="isActive" checked>
+                        <span>Channel is Active (visible in app)</span>
+                    </label>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="submit-btn">Save Channel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirm Modal -->
+    <div id="delete-overlay" class="modal-overlay" style="display:none">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2>Delete Channel?</h2>
+                <button class="modal-close" onclick="cancelDelete()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p id="delete-channel-name" style="margin-bottom:20px; color:#ccc;"></p>
+                <div class="modal-footer">
+                    <button class="btn btn-ghost" onclick="cancelDelete()">Cancel</button>
+                    <button class="btn btn-danger" id="confirm-delete-btn">Delete</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="app.js"></script>
