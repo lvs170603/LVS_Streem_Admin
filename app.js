@@ -1,215 +1,333 @@
 const API_URL = 'https://lvs-streem-backend.onrender.com/api/channels';
 
-// DOM Elements
-const channelForm = document.getElementById('channel-form');
-const channelsList = document.getElementById('channels-list');
-const formTitle = document.getElementById('form-title');
-const submitBtn = document.getElementById('submit-btn');
-const cancelBtn = document.getElementById('cancel-btn');
-const loadingIndicator = document.getElementById('loading');
-const errorMessage = document.getElementById('error-message');
+// ── DOM refs ──────────────────────────────────────────────────────
+const channelsList    = document.getElementById('channels-list');
+const loadingEl       = document.getElementById('loading');
+const emptyState      = document.getElementById('empty-state');
+const toastEl         = document.getElementById('toast');
+const searchInput     = document.getElementById('search-input');
+const categoryFilter  = document.getElementById('category-filter');
+const typeFilter      = document.getElementById('type-filter');
 
-// Form inputs
-const idInput = document.getElementById('channel-id');
-const nameInput = document.getElementById('name');
-const iconInput = document.getElementById('icon');
-const urlInput = document.getElementById('url');
-const categoryInput = document.getElementById('category');
+// ── State ──────────────────────────────────────────────────────────
+let allChannels   = [];
+let isEditing     = false;
+let pendingDelete = null;
 
-// State
-let isEditing = false;
-let currentChannels = [];
+// ── Init ───────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    fetchChannels();
 
-// Initialize and fetch channels
-document.addEventListener('DOMContentLoaded', fetchChannels);
+    // Open modal from multiple buttons
+    document.getElementById('topbar-add-btn').addEventListener('click', openAddModal);
+    document.getElementById('add-channel-nav').addEventListener('click', openAddModal);
+    document.getElementById('empty-add-btn').addEventListener('click', openAddModal);
 
-// Event Listeners
-channelForm.addEventListener('submit', handleFormSubmit);
-cancelBtn.addEventListener('click', resetForm);
+    // Form submit
+    document.getElementById('channel-form').addEventListener('submit', handleFormSubmit);
 
-// Fetch all channels from API
+    // Confirm delete
+    document.getElementById('confirm-delete-btn').addEventListener('click', confirmDelete);
+
+    // Close modals on overlay click
+    document.getElementById('modal-overlay').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeModal();
+    });
+    document.getElementById('delete-overlay').addEventListener('click', e => {
+        if (e.target === e.currentTarget) cancelDelete();
+    });
+
+    // ESC key closes modals
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { closeModal(); cancelDelete(); }
+    });
+});
+
+// ── Fetch ──────────────────────────────────────────────────────────
 async function fetchChannels() {
     showLoading(true);
-    hideError();
-    
     try {
-        const response = await fetch(API_URL);
-        if (!response.ok) throw new Error('Failed to fetch channels');
-        
-        currentChannels = await response.json();
-        renderChannels(currentChannels);
-    } catch (error) {
-        showError(error.message);
+        const res = await fetch(API_URL);
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        allChannels = await res.json();
+        updateStats();
+        populateCategoryFilter();
+        renderChannels(getFiltered());
+    } catch (err) {
+        showToast('Failed to load channels: ' + err.message, 'error');
     } finally {
         showLoading(false);
     }
 }
 
-// Render channels to table
+// ── Stats ──────────────────────────────────────────────────────────
+function updateStats() {
+    const total   = allChannels.length;
+    const active  = allChannels.filter(c => c.isActive !== false).length;
+    const hidden  = total - active;
+    const webview = allChannels.filter(c => c.webPlayerUrl && c.webPlayerUrl.trim()).length;
+
+    document.getElementById('stat-total').textContent   = total;
+    document.getElementById('stat-active').textContent  = active;
+    document.getElementById('stat-hidden').textContent  = hidden;
+    document.getElementById('stat-webview').textContent = webview;
+}
+
+// ── Category filter population ─────────────────────────────────────
+function populateCategoryFilter() {
+    const cats = [...new Set(allChannels.map(c => c.category).filter(Boolean))].sort();
+    const sel = categoryFilter;
+    const current = sel.value;
+    sel.innerHTML = '<option value="">All Categories</option>';
+    cats.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat; opt.textContent = cat;
+        if (cat === current) opt.selected = true;
+        sel.appendChild(opt);
+    });
+
+    // Also populate datalist in form
+    const dl = document.getElementById('category-datalist');
+    dl.innerHTML = '';
+    cats.forEach(cat => {
+        const o = document.createElement('option'); o.value = cat; dl.appendChild(o);
+    });
+}
+
+// ── Filter ─────────────────────────────────────────────────────────
+function filterChannels() {
+    renderChannels(getFiltered());
+}
+
+function getFiltered() {
+    const q    = searchInput.value.toLowerCase().trim();
+    const cat  = categoryFilter.value;
+    const type = typeFilter.value;
+
+    return allChannels.filter(c => {
+        const matchQ    = !q || c.name.toLowerCase().includes(q) || c.category.toLowerCase().includes(q);
+        const matchCat  = !cat || c.category === cat;
+        const hasWeb    = !!(c.webPlayerUrl && c.webPlayerUrl.trim());
+        const matchType = !type || (type === 'webview' ? hasWeb : !hasWeb);
+        return matchQ && matchCat && matchType;
+    });
+}
+
+// ── Render ─────────────────────────────────────────────────────────
 function renderChannels(channels) {
     channelsList.innerHTML = '';
-    
+
     if (channels.length === 0) {
-        channelsList.innerHTML = '<tr><td colspan="5" class="loading">No channels found. Add one above.</td></tr>';
+        emptyState.style.display = 'block';
+        document.getElementById('channels-table').style.display = 'none';
         return;
     }
-    
-    channels.forEach(channel => {
+
+    emptyState.style.display = 'none';
+    document.getElementById('channels-table').style.display = 'table';
+
+    channels.forEach(ch => {
+        const hasWebUrl = !!(ch.webPlayerUrl && ch.webPlayerUrl.trim());
+        const playerBadge = hasWebUrl
+            ? '<span class="badge badge-webview">WebView</span>'
+            : '<span class="badge badge-native">Native</span>';
+
+        const iconHtml = ch.icon
+            ? `<img src="${ch.icon}" alt="${ch.name}" class="channel-img" onerror="this.src='https://placehold.co/44x44/1e1e2a/6366f1?text=TV'">`
+            : `<div class="channel-img" style="display:flex;align-items:center;justify-content:center;font-size:1.2rem;">📺</div>`;
+
+        const streamUrlHtml = ch.url
+            ? `<a href="${ch.url}" target="_blank" rel="noopener" title="${ch.url}">${truncate(ch.url, 30)}</a>`
+            : '<span style="color:#4b5563">—</span>';
+
+        const webUrlHtml = hasWebUrl
+            ? `<a href="${ch.webPlayerUrl}" target="_blank" rel="noopener" title="${ch.webPlayerUrl}">${truncate(ch.webPlayerUrl, 28)}</a>`
+            : '<span style="color:#4b5563">—</span>';
+
         const tr = document.createElement('tr');
-        
-        // Handle images that might fail to load
-        const iconHtml = channel.icon 
-            ? `<img src="${channel.icon}" alt="${channel.name}" class="channel-img" onerror="this.src='https://via.placeholder.com/50?text=Logo'">` 
-            : 'No image';
-            
         tr.innerHTML = `
             <td>${iconHtml}</td>
-            <td><strong>${channel.name}</strong></td>
-            <td><span style="background:#e0e0e0; padding:2px 8px; border-radius:10px; font-size:0.85em;">${channel.category}</span></td>
-            <td class="url-cell" title="${channel.url}">${channel.url}</td>
+            <td><strong>${ch.name}</strong></td>
+            <td><span style="background:rgba(99,102,241,0.12);color:#818cf8;padding:2px 10px;border-radius:20px;font-size:0.78rem;">${ch.category}</span></td>
+            <td class="url-cell">${streamUrlHtml}</td>
+            <td class="url-cell">${webUrlHtml}</td>
+            <td>${playerBadge}</td>
             <td>
-                <label class="switch">
-                    <input type="checkbox" onchange="toggleChannelVisibility('${channel._id}', this.checked)" ${channel.isActive !== false ? 'checked' : ''}>
+                <label class="switch" title="${ch.isActive !== false ? 'Active – click to hide' : 'Hidden – click to show'}">
+                    <input type="checkbox" onchange="toggleActive('${ch._id}', this.checked)" ${ch.isActive !== false ? 'checked' : ''}>
                     <span class="slider round"></span>
                 </label>
             </td>
-            <td>
-                <button class="edit-btn" onclick="editChannel('${channel._id}')">Edit</button>
-                <button class="delete-btn" onclick="deleteChannel('${channel._id}')">Delete</button>
+            <td style="white-space:nowrap">
+                <button class="btn btn-sm btn-ghost" onclick="openEditModal('${ch._id}')">✏️ Edit</button>
+                <button class="btn btn-sm btn-danger" style="margin-left:6px" onclick="openDeleteModal('${ch._id}')">🗑️</button>
             </td>
         `;
-        
         channelsList.appendChild(tr);
     });
 }
 
-// Handle form submission (Add or Update)
+function truncate(str, n) {
+    return str.length > n ? str.slice(0, n) + '…' : str;
+}
+
+// ── Modal helpers ─────────────────────────────────────────────────
+function openAddModal() {
+    isEditing = false;
+    document.getElementById('modal-title').textContent = 'Add New Channel';
+    document.getElementById('submit-btn').textContent = 'Add Channel';
+    document.getElementById('channel-form').reset();
+    document.getElementById('channel-id').value = '';
+    document.getElementById('isActive').checked = true;
+    document.getElementById('icon-preview').style.display = 'none';
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function openEditModal(id) {
+    const ch = allChannels.find(c => c._id === id);
+    if (!ch) return;
+    isEditing = true;
+
+    document.getElementById('modal-title').textContent = 'Edit Channel';
+    document.getElementById('submit-btn').textContent = 'Update Channel';
+    document.getElementById('channel-id').value   = ch._id;
+    document.getElementById('name').value          = ch.name || '';
+    document.getElementById('icon').value          = ch.icon || '';
+    document.getElementById('url').value           = ch.url  || '';
+    document.getElementById('category').value      = ch.category || '';
+    document.getElementById('webPlayerUrl').value  = ch.webPlayerUrl || '';
+    document.getElementById('isActive').checked    = ch.isActive !== false;
+
+    previewIcon();
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('modal-overlay').style.display = 'none';
+    document.getElementById('channel-form').reset();
+    document.getElementById('icon-preview').style.display = 'none';
+}
+
+// ── Form Submit ───────────────────────────────────────────────────
 async function handleFormSubmit(e) {
     e.preventDefault();
-    
-    const channelData = {
-        name: nameInput.value.trim(),
-        icon: iconInput.value.trim(),
-        url: urlInput.value.trim(),
-        category: categoryInput.value.trim()
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.textContent = isEditing ? 'Updating…' : 'Adding…';
+
+    const data = {
+        name:         document.getElementById('name').value.trim(),
+        icon:         document.getElementById('icon').value.trim(),
+        url:          document.getElementById('url').value.trim(),
+        category:     document.getElementById('category').value.trim(),
+        webPlayerUrl: document.getElementById('webPlayerUrl').value.trim(),
+        isActive:     document.getElementById('isActive').checked,
     };
-    
-    try {
-        if (isEditing) {
-            // Update existing channel
-            const id = idInput.value;
-            const response = await fetch(`${API_URL}/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(channelData)
-            });
-            
-            if (!response.ok) throw new Error('Failed to update channel');
-        } else {
-            // Add new channel
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(channelData)
-            });
-            
-            if (!response.ok) throw new Error('Failed to add channel');
-        }
-        
-        resetForm();
-        fetchChannels();
-        
-    } catch (error) {
-        showError(error.message);
-    }
-}
 
-// Populate form for editing
-function editChannel(id) {
-    const channel = currentChannels.find(c => c._id === id);
-    if (!channel) return;
-    
-    idInput.value = channel._id;
-    nameInput.value = channel.name;
-    iconInput.value = channel.icon;
-    urlInput.value = channel.url;
-    categoryInput.value = channel.category;
-    
-    isEditing = true;
-    formTitle.textContent = 'Edit Channel';
-    submitBtn.textContent = 'Update Channel';
-    cancelBtn.style.display = 'inline-block';
-    
-    // Scroll to form
-    document.querySelector('.form-section').scrollIntoView({ behavior: 'smooth' });
-}
-
-// Delete a channel
-async function deleteChannel(id) {
-    if (!confirm('Are you sure you want to delete this channel?')) return;
-    
     try {
-        const response = await fetch(`${API_URL}/${id}`, {
-            method: 'DELETE'
+        const id = document.getElementById('channel-id').value;
+        const endpoint = isEditing ? `${API_URL}/${id}` : API_URL;
+        const method   = isEditing ? 'PUT' : 'POST';
+
+        const res = await fetch(endpoint, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
         });
-        
-        if (!response.ok) throw new Error('Failed to delete channel');
-        
-        // Remove from local array and re-render to avoid extra network request if desired
-        currentChannels = currentChannels.filter(c => c._id !== id);
-        renderChannels(currentChannels);
-        
-    } catch (error) {
-        showError(error.message);
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+
+        showToast(isEditing ? 'Channel updated ✓' : 'Channel added ✓', 'success');
+        closeModal();
+        await fetchChannels();
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = isEditing ? 'Update Channel' : 'Add Channel';
     }
 }
 
-// Toggle Channel Visibility
-async function toggleChannelVisibility(id, isActive) {
+// ── Toggle Active ──────────────────────────────────────────────────
+async function toggleActive(id, isActive) {
     try {
-        const response = await fetch(`${API_URL}/${id}`, {
+        const res = await fetch(`${API_URL}/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ isActive })
+            body: JSON.stringify({ isActive }),
         });
-        
-        if (!response.ok) throw new Error('Failed to update visibility');
-        
-        // Update local state without full reload
-        const channelIndex = currentChannels.findIndex(c => c._id === id);
-        if (channelIndex > -1) {
-            currentChannels[channelIndex].isActive = isActive;
-        }
-        
-    } catch (error) {
-        showError(error.message);
-        // Revert UI toggle visually if request fails
-        fetchChannels();
+        if (!res.ok) throw new Error('Failed');
+        const ch = allChannels.find(c => c._id === id);
+        if (ch) ch.isActive = isActive;
+        updateStats();
+        showToast(`Channel ${isActive ? 'activated' : 'hidden'}`, 'success');
+    } catch {
+        showToast('Failed to update visibility', 'error');
+        fetchChannels(); // revert UI
     }
 }
 
-// Reset the form
-function resetForm() {
-    channelForm.reset();
-    idInput.value = '';
-    isEditing = false;
-    formTitle.textContent = 'Add New Channel';
-    submitBtn.textContent = 'Save Channel';
-    cancelBtn.style.display = 'none';
+// ── Delete ─────────────────────────────────────────────────────────
+function openDeleteModal(id) {
+    pendingDelete = id;
+    const ch = allChannels.find(c => c._id === id);
+    document.getElementById('delete-channel-name').textContent =
+        `This will permanently delete "${ch?.name || 'this channel'}".`;
+    document.getElementById('delete-overlay').style.display = 'flex';
 }
 
-// UI Helpers
+function cancelDelete() {
+    pendingDelete = null;
+    document.getElementById('delete-overlay').style.display = 'none';
+}
+
+async function confirmDelete() {
+    if (!pendingDelete) return;
+    const btn = document.getElementById('confirm-delete-btn');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+        const res = await fetch(`${API_URL}/${pendingDelete}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        allChannels = allChannels.filter(c => c._id !== pendingDelete);
+        cancelDelete();
+        updateStats();
+        populateCategoryFilter();
+        renderChannels(getFiltered());
+        showToast('Channel deleted', 'success');
+    } catch (err) {
+        showToast('Delete failed: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Delete';
+    }
+}
+
+// ── Icon preview ──────────────────────────────────────────────────
+function previewIcon() {
+    const url = document.getElementById('icon').value.trim();
+    const img = document.getElementById('icon-preview');
+    if (url) {
+        img.src = url;
+        img.style.display = 'block';
+        img.onerror = () => img.style.display = 'none';
+    } else {
+        img.style.display = 'none';
+    }
+}
+
+// ── Toast ──────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type = 'success') {
+    toastEl.textContent = msg;
+    toastEl.className = `toast ${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toastEl.className = 'toast'; }, 3500);
+}
+
+// ── Loading ────────────────────────────────────────────────────────
 function showLoading(show) {
-    loadingIndicator.style.display = show ? 'block' : 'none';
-    if (show) channelsList.innerHTML = '';
-}
-
-function showError(msg) {
-    errorMessage.textContent = msg;
-    errorMessage.style.display = 'block';
-    setTimeout(hideError, 5000);
-}
-
-function hideError() {
-    errorMessage.style.display = 'none';
+    loadingEl.style.display = show ? 'flex' : 'none';
+    if (show) {
+        channelsList.innerHTML = '';
+        emptyState.style.display = 'none';
+        document.getElementById('channels-table').style.display = show ? 'none' : 'table';
+    }
 }
