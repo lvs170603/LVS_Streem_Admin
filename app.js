@@ -278,6 +278,15 @@ async function handleFormSubmit(e) {
         isActive:     document.getElementById('isActive').checked,
     };
 
+    // Validate: at least one of Stream URL or Web Player URL must be set
+    if (!data.url && !data.webPlayerUrl) {
+        showToast('Please enter either a Stream URL or a Web Player URL.', 'error');
+        btn.disabled = false;
+        btn.textContent = isEditing ? 'Update Channel' : 'Add Channel';
+        document.getElementById('webPlayerUrl').focus();
+        return;
+    }
+
     try {
         const id = document.getElementById('channel-id').value;
         const endpoint = isEditing ? `${API_URL}/${id}` : API_URL;
