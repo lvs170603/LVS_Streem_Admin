@@ -1,7 +1,7 @@
 // ── Auth Gate ─────────────────────────────────────────────────────
 // Password is hashed so it's not visible in plain text in source code.
-// SHA-256 of "4231" = pre-computed below.
-const PASS_HASH = 'a4f2e5a1b3e55a13619fe5d8ec0a25e0c26a3b12a5bd04f10b1b10c282dff059';
+// SHA-256 of "4231"
+const PASS_HASH = 'bba155c5f227c6e52a8b2707a13e817137cbac50806b4822f99bbf0778c3f8fd';
 
 async function sha256(str) {
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
