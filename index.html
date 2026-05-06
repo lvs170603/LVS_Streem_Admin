@@ -9,6 +9,31 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+
+    <!-- ── Password Gate ───────────────────────────────────────── -->
+    <div id="auth-gate" class="auth-gate">
+        <div class="auth-card">
+            <div class="auth-logo">📺</div>
+            <h1 class="auth-title">LVS Admin</h1>
+            <p class="auth-sub">Enter password to continue</p>
+            <div class="auth-input-wrap">
+                <input
+                    type="password"
+                    id="password-input"
+                    class="auth-input"
+                    placeholder="Password"
+                    maxlength="20"
+                    autocomplete="current-password"
+                    onkeydown="if(event.key==='Enter') checkPassword()"
+                >
+                <button class="auth-btn" onclick="checkPassword()">Unlock →</button>
+            </div>
+            <p id="auth-error" class="auth-error" style="display:none">Incorrect password. Try again.</p>
+        </div>
+    </div>
+
+    <!-- ── Dashboard (hidden until auth) ──────────────────────── -->
+    <div id="dashboard" style="display:none; display:contents">
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-logo">
@@ -183,6 +208,8 @@
             </div>
         </div>
     </div>
+
+    </div><!-- /#dashboard -->
 
     <script src="app.js"></script>
 </body>

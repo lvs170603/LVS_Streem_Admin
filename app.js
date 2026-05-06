@@ -1,4 +1,51 @@
+// ── Auth Gate ─────────────────────────────────────────────────────
+// Password is hashed so it's not visible in plain text in source code.
+// SHA-256 of "4231" = pre-computed below.
+const PASS_HASH = 'a4f2e5a1b3e55a13619fe5d8ec0a25e0c26a3b12a5bd04f10b1b10c282dff059';
+
+async function sha256(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function checkPassword() {
+    const input = document.getElementById('password-input');
+    const errorEl = document.getElementById('auth-error');
+    const hash = await sha256(input.value);
+
+    if (hash === PASS_HASH) {
+        // Correct — show dashboard, remove gate
+        sessionStorage.setItem('lvsAdminAuth', '1');
+        const gate = document.getElementById('auth-gate');
+        gate.style.opacity = '0';
+        gate.style.transition = 'opacity 0.3s';
+        setTimeout(() => gate.remove(), 300);
+
+        const dash = document.getElementById('dashboard');
+        dash.style.display = 'contents';
+        fetchChannels();
+    } else {
+        // Wrong — shake animation + error message
+        errorEl.style.display = 'block';
+        input.classList.remove('shake');
+        void input.offsetWidth; // reflow to restart animation
+        input.classList.add('shake');
+        input.value = '';
+        setTimeout(() => input.classList.remove('shake'), 500);
+    }
+}
+
+// Auto-unlock if already authenticated in this session
+(function initAuth() {
+    if (sessionStorage.getItem('lvsAdminAuth') === '1') {
+        document.getElementById('auth-gate').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'contents';
+        // fetchChannels() will be called after DOMContentLoaded
+    }
+})();
+
 const API_URL = 'https://lvs-streem-backend.onrender.com/api/channels';
+
 
 // ── DOM refs ──────────────────────────────────────────────────────
 const channelsList    = document.getElementById('channels-list');
@@ -16,7 +63,14 @@ let pendingDelete = null;
 
 // ── Init ───────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    fetchChannels();
+    // Only load channels if already authenticated
+    if (sessionStorage.getItem('lvsAdminAuth') === '1') {
+        fetchChannels();
+    }
+
+    // Focus password input on load
+    const pwInput = document.getElementById('password-input');
+    if (pwInput) pwInput.focus();
 
     // Open modal from multiple buttons
     document.getElementById('topbar-add-btn').addEventListener('click', openAddModal);
