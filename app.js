@@ -63,10 +63,12 @@ function toggleTheme() {
 
 function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
-    const icon = document.getElementById('theme-icon');
-    if (icon) {
-        icon.textContent = theme === 'dark' ? '☀️' : '🌙';
-    }
+    const iconTopbar = document.getElementById('theme-icon');
+    const iconSidebar = document.getElementById('theme-icon-sidebar');
+    const iconText = theme === 'dark' ? '☀️' : '🌙';
+    
+    if (iconTopbar) iconTopbar.textContent = iconText;
+    if (iconSidebar) iconSidebar.textContent = iconText;
 }
 
 // Initialize theme

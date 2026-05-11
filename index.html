@@ -53,6 +53,13 @@
             <a href="#" class="nav-item" id="add-channel-nav">
                 <span class="nav-icon">➕</span> Add Channel
             </a>
+            <div class="sidebar-divider mobile-only"></div>
+            <a href="#" class="nav-item mobile-only" onclick="fetchChannels(); closeSidebar()">
+                <span class="nav-icon">↻</span> Refresh
+            </a>
+            <a href="#" class="nav-item mobile-only" onclick="toggleTheme()">
+                <span class="nav-icon" id="theme-icon-sidebar">☀️</span> Theme Mode
+            </a>
         </nav>
         <div class="sidebar-footer">LVS Stream Backend</div>
     </aside>

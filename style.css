@@ -514,6 +514,18 @@ input::placeholder { color: #4b5563; }
     
     .modal-content { width: 95%; padding: 20px; }
     .form-row { grid-template-columns: 1fr; }
+
+    /* Hide topbar buttons on mobile, show in sidebar */
+    .topbar-actions { display: none; }
+    .mobile-only { display: flex !important; }
+}
+
+.mobile-only { display: none; }
+.sidebar-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 15px 20px;
+    opacity: 0.5;
 }
 
 @media (max-width: 480px) {
