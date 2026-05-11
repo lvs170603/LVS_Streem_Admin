@@ -41,7 +41,7 @@
             <span class="logo-text">LVS Admin</span>
         </div>
         <nav class="sidebar-nav">
-            <a href="#" class="nav-item active" data-section="channels">
+            <a href="#" class="nav-item active" data-section="channels" onclick="closeSidebar()">
                 <span class="nav-icon">📡</span> Channels
             </a>
             <a href="#" class="nav-item" id="add-channel-nav">
@@ -51,11 +51,17 @@
         <div class="sidebar-footer">LVS Stream Backend</div>
     </aside>
 
+    <!-- Sidebar Overlay for Mobile -->
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
     <!-- Main Content -->
     <div class="main-content">
         <!-- Top Bar -->
         <header class="topbar">
-            <h1 id="page-title">Channel Management</h1>
+            <div class="topbar-left">
+                <button id="menu-toggle-btn" class="btn btn-ghost menu-toggle" onclick="toggleSidebar()">☰</button>
+                <h1 id="page-title">Channel Management</h1>
+            </div>
             <div class="topbar-actions">
                 <button id="refresh-btn" class="btn btn-ghost" onclick="fetchChannels()">
                     ↻ Refresh

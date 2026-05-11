@@ -452,18 +452,45 @@ input::placeholder { color: #4b5563; }
 .checkbox-label input { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
 
 /* ── Responsive ────────────────────────────────────────────────── */
+.menu-toggle { display: none; margin-right: 12px; font-size: 1.4rem; padding: 4px 10px; background: transparent; color: var(--text); border: none; cursor: pointer; }
+.topbar-left { display: flex; align-items: center; }
+
+.sidebar-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 105;
+    opacity: 0; visibility: hidden; transition: all 0.3s ease;
+}
+
 @media (max-width: 900px) {
-    .sidebar { width: 60px; }
-    .logo-text, .nav-item span:last-child, .sidebar-footer { display: none; }
-    .sidebar-logo { justify-content: center; padding: 18px 10px; }
-    .nav-item { justify-content: center; padding: 12px; }
-    .main-content { margin-left: 60px; padding: 0 16px 40px; }
     .stats-row { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 110;
+        width: 250px;
+    }
+    body.sidebar-open .sidebar { transform: translateX(0); }
+    body.sidebar-open .sidebar-overlay { opacity: 1; visibility: visible; }
+    
+    .menu-toggle { display: block; }
+    .main-content { margin-left: 0; padding: 0 16px 40px; }
+    
+    .toolbar { flex-direction: column; align-items: stretch; }
+    .search-input { width: 100%; margin-bottom: 10px; }
+    .filter-select { width: 100%; }
+    
+    .topbar { flex-direction: column; align-items: flex-start; gap: 16px; }
+    .topbar-actions { width: 100%; justify-content: space-between; }
+    
+    .card { overflow-x: auto; }
+    .table th, .table td { white-space: nowrap; }
+    
+    .modal-content { width: 95%; padding: 20px; }
     .form-row { grid-template-columns: 1fr; }
 }
-@media (max-width: 600px) {
-    .stats-row { grid-template-columns: 1fr 1fr; }
-    .toolbar { flex-direction: column; }
-    .topbar { flex-direction: column; gap: 12px; align-items: flex-start; }
-    .card { overflow-x: auto; }
+
+@media (max-width: 480px) {
+    .stats-row { grid-template-columns: 1fr; }
 }

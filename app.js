@@ -44,6 +44,15 @@ async function checkPassword() {
     }
 })();
 
+// ── Mobile Sidebar Toggle ─────────────────────────────────────────
+function toggleSidebar() {
+    document.body.classList.toggle('sidebar-open');
+}
+
+function closeSidebar() {
+    document.body.classList.remove('sidebar-open');
+}
+
 const API_URL = 'https://lvs-streem-backend.onrender.com/api/channels';
 
 
@@ -227,6 +236,7 @@ function truncate(str, n) {
 
 // ── Modal helpers ─────────────────────────────────────────────────
 function openAddModal() {
+    closeSidebar();
     isEditing = false;
     document.getElementById('modal-title').textContent = 'Add New Channel';
     document.getElementById('submit-btn').textContent = 'Add Channel';
