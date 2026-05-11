@@ -53,6 +53,41 @@ function closeSidebar() {
     document.body.classList.remove('sidebar-open');
 }
 
+// ── Theme Management ─────────────────────────────────────────────
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    applyTheme(newTheme);
+    localStorage.setItem('lvsAdminTheme', newTheme);
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    const icon = document.getElementById('theme-icon');
+    if (icon) {
+        icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+    }
+}
+
+// Initialize theme
+(function initTheme() {
+    const savedTheme = localStorage.getItem('lvsAdminTheme');
+    if (savedTheme) {
+        applyTheme(savedTheme);
+    } else {
+        // Fallback to system preference
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        applyTheme(prefersDark ? 'dark' : 'light');
+    }
+
+    // Listen for system theme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        if (!localStorage.getItem('lvsAdminTheme')) {
+            applyTheme(e.matches ? 'dark' : 'light');
+        }
+    });
+})();
+
 const API_URL = 'https://lvs-streem-backend.onrender.com/api/channels';
 
 
