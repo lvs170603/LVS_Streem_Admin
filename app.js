@@ -337,6 +337,7 @@ function openEditModal(id) {
     document.getElementById('url').value           = ch.url  || '';
     document.getElementById('category').value      = ch.category || '';
     document.getElementById('webPlayerUrl').value  = ch.webPlayerUrl || '';
+    document.getElementById('dns').value           = ch.dns || '';
     document.getElementById('isActive').checked    = ch.isActive !== false;
 
     previewIcon();
@@ -362,6 +363,7 @@ async function handleFormSubmit(e) {
         url:          document.getElementById('url').value.trim(),
         category:     document.getElementById('category').value.trim(),
         webPlayerUrl: document.getElementById('webPlayerUrl').value.trim(),
+        dns:          document.getElementById('dns').value.trim(),
         isActive:     document.getElementById('isActive').checked,
     };
 
