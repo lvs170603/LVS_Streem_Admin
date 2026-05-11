@@ -41,8 +41,14 @@
             <span class="logo-text">LVS Admin</span>
         </div>
         <nav class="sidebar-nav">
-            <a href="#" class="nav-item active" data-section="channels" onclick="closeSidebar()">
-                <span class="nav-icon">📡</span> Channels
+            <a href="#" class="nav-item active" id="nav-all" onclick="setChannelView('all'); closeSidebar()">
+                <span class="nav-icon">📡</span> All Channels
+            </a>
+            <a href="#" class="nav-item" id="nav-tv" onclick="setChannelView('tv'); closeSidebar()">
+                <span class="nav-icon">📺</span> TV Channels
+            </a>
+            <a href="#" class="nav-item" id="nav-radio" onclick="setChannelView('radio'); closeSidebar()">
+                <span class="nav-icon">📻</span> Radio Channels
             </a>
             <a href="#" class="nav-item" id="add-channel-nav">
                 <span class="nav-icon">➕</span> Add Channel

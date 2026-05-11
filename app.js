@@ -69,6 +69,28 @@ const typeFilter      = document.getElementById('type-filter');
 let allChannels   = [];
 let isEditing     = false;
 let pendingDelete = null;
+let currentView   = 'all'; // 'all' | 'tv' | 'radio'
+
+// ── Set Channel View (sidebar nav) ───────────────────────────────────
+function setChannelView(view) {
+    currentView = view;
+
+    // Update active nav item
+    ['nav-all', 'nav-tv', 'nav-radio'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('active');
+    });
+    const activeNav = document.getElementById(`nav-${view}`);
+    if (activeNav) activeNav.classList.add('active');
+
+    // Update page title
+    const titles = { all: 'All Channels', tv: '📺 TV Channels', radio: '📻 Radio Channels' };
+    document.getElementById('page-title').textContent = titles[view] || 'Channels';
+
+    // Re-populate category filter and render
+    populateCategoryFilter();
+    filterChannels();
+}
 
 // ── Init ───────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -125,6 +147,8 @@ async function fetchChannels() {
 
 // ── Stats ──────────────────────────────────────────────────────────
 function updateStats() {
+    const tvChannels    = allChannels.filter(c => c.category.toLowerCase() !== 'radio');
+    const radioChannels = allChannels.filter(c => c.category.toLowerCase() === 'radio');
     const total   = allChannels.length;
     const active  = allChannels.filter(c => c.isActive !== false).length;
     const hidden  = total - active;
@@ -134,11 +158,22 @@ function updateStats() {
     document.getElementById('stat-active').textContent  = active;
     document.getElementById('stat-hidden').textContent  = hidden;
     document.getElementById('stat-webview').textContent = webview;
+
+    // Update label to show TV/Radio breakdown in stat cards
+    const labelTotal = document.querySelector('#stat-total').closest('.stat-card').querySelector('.stat-label');
+    if (labelTotal) labelTotal.textContent = `Total (TV: ${tvChannels.length} | Radio: ${radioChannels.length})`;
 }
 
 // ── Category filter population ─────────────────────────────────────
 function populateCategoryFilter() {
-    const cats = [...new Set(allChannels.map(c => c.category).filter(Boolean))].sort();
+    // Only show categories relevant to current view
+    const viewChannels = currentView === 'tv'
+        ? allChannels.filter(c => c.category.toLowerCase() !== 'radio')
+        : currentView === 'radio'
+            ? allChannels.filter(c => c.category.toLowerCase() === 'radio')
+            : allChannels;
+
+    const cats = [...new Set(viewChannels.map(c => c.category).filter(Boolean))].sort();
     const sel = categoryFilter;
     const current = sel.value;
     sel.innerHTML = '<option value="">All Categories</option>';
@@ -168,6 +203,11 @@ function getFiltered() {
     const type = typeFilter.value;
 
     return allChannels.filter(c => {
+        // View filter (TV / Radio / All)
+        const isRadio = c.category.toLowerCase() === 'radio';
+        if (currentView === 'tv' && isRadio) return false;
+        if (currentView === 'radio' && !isRadio) return false;
+
         const matchQ    = !q || c.name.toLowerCase().includes(q) || c.category.toLowerCase().includes(q);
         const matchCat  = !cat || c.category === cat;
         const hasWeb    = !!(c.webPlayerUrl && c.webPlayerUrl.trim());
